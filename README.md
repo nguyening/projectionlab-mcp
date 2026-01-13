@@ -77,11 +77,15 @@ Add to your MCP settings:
 - `list_priorities` - List cash flow priorities (401k contributions, debt payments, etc.)
 - `get_priority` - Get details of a specific priority
 - `update_priority` - Update priority contribution settings
+- `add_priority` - Add a new cash flow priority (401k, IRA, debt payment, savings goal)
+- `delete_priority` - Delete a priority from a plan
 
 ### Milestones
 - `list_milestones` - List plan milestones (retirement, FIRE, etc.)
 - `get_milestone` - Get details of a specific milestone
 - `update_milestone` - Update milestone properties
+- `add_milestone` - Add a new milestone (retirement, FIRE, career change, etc.)
+- `delete_milestone` - Delete a milestone from a plan
 
 ### Plan Configuration
 - `get_plan_variables` - Get plan assumptions and tax settings
@@ -94,6 +98,17 @@ Add to your MCP settings:
 ### Progress Tracking
 - `get_progress` - Get historical net worth tracking data
 - `add_progress_snapshot` - Add a new progress snapshot
+
+### Delete Operations
+- `delete_account` - Delete a savings or investment account
+- `delete_debt` - Delete a debt
+- `delete_asset` - Delete an asset
+- `delete_income` - Delete an income event from a plan
+- `delete_expense` - Delete an expense event from a plan
+
+### Plan Management
+- `duplicate_plan` - Create a copy of an existing plan with a new name
+- `delete_plan` - Delete a plan (prevents deleting the last plan)
 
 ## Data Safety
 

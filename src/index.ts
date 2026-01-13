@@ -479,6 +479,26 @@ const tools = [
         name: { type: "string", description: "Expense name" },
         amount: { type: "number", description: "Annual amount" },
         spendingType: { type: "string", enum: ["essential", "discretionary", "flex"], description: "Spending category" },
+        start: {
+          type: "object",
+          description: "When the expense starts. Use type='year' with value='2043' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2043', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the expense ends. Same format as start",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2057', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
       },
       required: ["planId", "type", "name", "amount"],
     },
@@ -545,6 +565,65 @@ const tools = [
           },
           required: ["type", "value"],
         },
+      },
+      required: ["planId", "priorityId"],
+    },
+  },
+  {
+    name: "add_priority",
+    description: "Add a new cash flow priority to a plan (401k contribution, debt payment, savings goal, etc.)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        type: {
+          type: "string",
+          enum: ["401k", "roth-ira", "traditional-ira", "hsa", "529", "taxable", "savings", "debt", "asset", "mega-backdoor", "espp"],
+          description: "Type of priority"
+        },
+        name: { type: "string", description: "Priority name" },
+        accountId: { type: "string", description: "Target account ID (for account-based priorities)" },
+        debtId: { type: "string", description: "Target debt ID (for debt payment priorities)" },
+        owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner" },
+        mode: { type: "string", enum: ["target", "contribution"], description: "Target amount or contribution mode" },
+        amount: { type: "number", description: "Target amount (for target mode)" },
+        amountType: { type: "string", enum: ["today$", "future$"], description: "How to interpret target amount" },
+        contribution: { type: "number", description: "Contribution amount per period" },
+        contributionType: { type: "string", enum: ["today$", "%"], description: "Contribution type" },
+        employerMatch: { type: "number", description: "Employer match percentage" },
+        employerMatchLimit: { type: "number", description: "Employer match limit" },
+        start: {
+          type: "object",
+          description: "When the priority starts",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
+            value: { type: "string" },
+            modifier: { type: ["string", "number"] },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the priority ends",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
+            value: { type: "string" },
+            modifier: { type: ["string", "number"] },
+          },
+          required: ["type", "value"],
+        },
+      },
+      required: ["planId", "type", "name"],
+    },
+  },
+  {
+    name: "delete_priority",
+    description: "Delete a priority from a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        priorityId: { type: "string", description: "The priority ID to delete" },
       },
       required: ["planId", "priorityId"],
     },
@@ -627,6 +706,74 @@ const tools = [
             },
           },
         },
+      },
+      required: ["planId", "milestoneId"],
+    },
+  },
+  {
+    name: "add_milestone",
+    description: "Add a new milestone to a plan (e.g., retirement, FIRE, career change)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        name: { type: "string", description: "Milestone name (e.g., 'Retirement', 'FIRE', 'Career Change')" },
+        icon: { type: "string", description: "Icon identifier" },
+        color: { type: "string", description: "Color for the milestone" },
+        criteria: {
+          type: "array",
+          description: "Conditions that trigger the milestone",
+          items: {
+            type: "object",
+            properties: {
+              type: {
+                type: "string",
+                enum: ["year", "date", "milestone", "netWorth", "account", "totalDebt"],
+                description: "Type of criterion"
+              },
+              value: {
+                type: ["string", "number"],
+                description: "The target value"
+              },
+              valueType: {
+                type: "string",
+                enum: ["$", "today$", "expenses", "%"],
+                description: "How to interpret the value"
+              },
+              operator: {
+                type: "string",
+                enum: [">=", "<=", "==", ">", "<"],
+                description: "Comparison operator"
+              },
+              modifier: {
+                type: "string",
+                enum: ["include", "exclude"],
+                description: "Include or exclude boundary"
+              },
+              logic: {
+                type: "string",
+                enum: ["and", "or"],
+                description: "How to combine with other criteria"
+              },
+              refId: {
+                type: "string",
+                description: "Reference ID for account/debt"
+              },
+            },
+          },
+        },
+      },
+      required: ["planId", "name"],
+    },
+  },
+  {
+    name: "delete_milestone",
+    description: "Delete a milestone from a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        milestoneId: { type: "string", description: "The milestone ID to delete" },
       },
       required: ["planId", "milestoneId"],
     },
@@ -743,6 +890,94 @@ const tools = [
         debt: { type: "number", description: "Total debt" },
       },
       required: ["netWorth"],
+    },
+  },
+
+  // ==========================================================================
+  // Delete Operations
+  // ==========================================================================
+  {
+    name: "delete_account",
+    description: "Delete a savings or investment account",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        accountId: { type: "string", description: "The account ID to delete" },
+      },
+      required: ["accountId"],
+    },
+  },
+  {
+    name: "delete_debt",
+    description: "Delete a debt",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        debtId: { type: "string", description: "The debt ID to delete" },
+      },
+      required: ["debtId"],
+    },
+  },
+  {
+    name: "delete_asset",
+    description: "Delete an asset",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        assetId: { type: "string", description: "The asset ID to delete" },
+      },
+      required: ["assetId"],
+    },
+  },
+  {
+    name: "delete_income",
+    description: "Delete an income event from a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        incomeId: { type: "string", description: "The income event ID to delete" },
+      },
+      required: ["planId", "incomeId"],
+    },
+  },
+  {
+    name: "delete_expense",
+    description: "Delete an expense event from a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        expenseId: { type: "string", description: "The expense event ID to delete" },
+      },
+      required: ["planId", "expenseId"],
+    },
+  },
+
+  // ==========================================================================
+  // Plan Management
+  // ==========================================================================
+  {
+    name: "duplicate_plan",
+    description: "Create a copy of an existing plan with a new name",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID to duplicate" },
+        newName: { type: "string", description: "Name for the new plan" },
+      },
+      required: ["planId", "newName"],
+    },
+  },
+  {
+    name: "delete_plan",
+    description: "Delete a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID to delete" },
+      },
+      required: ["planId"],
     },
   },
 ];
@@ -1169,8 +1404,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           amountType: "today$",
           frequency: "yearly",
           spendingType: (args?.spendingType as ExpenseEvent["spendingType"]) ?? "discretionary",
-          start: { type: "keyword", value: "now" },
-          end: { type: "keyword", value: "endOfPlan" },
+          start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
+          end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
         };
 
         plan.expenses.events.push(newExpense);
@@ -1213,6 +1448,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(priority, null, 2) }] };
       }
 
+      case "add_priority": {
+        const plan = findPlan(args?.planId as string);
+        if (!plan.priorities) plan.priorities = { events: [] };
+        if (!plan.priorities.events) plan.priorities.events = [];
+
+        const newPriority: PriorityEvent = {
+          id: `priority-${Date.now()}`,
+          type: args?.type as PriorityEvent["type"],
+          name: args?.name as string,
+          owner: (args?.owner as PriorityEvent["owner"]) ?? "me",
+          mode: (args?.mode as PriorityEvent["mode"]) ?? "contribution",
+          start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
+          end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
+        };
+
+        if (args?.accountId !== undefined) newPriority.accountId = args.accountId as string;
+        if (args?.debtId !== undefined) newPriority.debtId = args.debtId as string;
+        if (args?.amount !== undefined) newPriority.amount = args.amount as number;
+        if (args?.amountType !== undefined) newPriority.amountType = args.amountType as "today$" | "future$";
+        if (args?.contribution !== undefined) newPriority.contribution = args.contribution as number;
+        if (args?.contributionType !== undefined) newPriority.contributionType = args.contributionType as "today$" | "%";
+        if (args?.employerMatch !== undefined) newPriority.employerMatch = args.employerMatch as number;
+        if (args?.employerMatchLimit !== undefined) newPriority.employerMatchLimit = args.employerMatchLimit as number;
+
+        plan.priorities.events.push(newPriority);
+        await saveData();
+        return { content: [{ type: "text", text: JSON.stringify(newPriority, null, 2) }] };
+      }
+
       // ========================================================================
       // Milestones
       // ========================================================================
@@ -1239,6 +1503,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
+      }
+
+      case "add_milestone": {
+        const plan = findPlan(args?.planId as string);
+        if (!plan.milestones) plan.milestones = [];
+
+        const newMilestone: Milestone = {
+          id: `milestone-${Date.now()}`,
+          name: args?.name as string,
+          removable: true,
+        };
+
+        if (args?.icon !== undefined) newMilestone.icon = args.icon as string;
+        if (args?.color !== undefined) newMilestone.color = args.color as string;
+        if (args?.criteria !== undefined) newMilestone.criteria = args.criteria as MilestoneCriterion[];
+
+        plan.milestones.push(newMilestone);
+        await saveData();
+        return { content: [{ type: "text", text: JSON.stringify(newMilestone, null, 2) }] };
       }
 
       // ========================================================================
@@ -1330,6 +1613,142 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         d.progress.lastUpdated = Date.now();
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(snapshot, null, 2) }] };
+      }
+
+      // ========================================================================
+      // Delete Operations
+      // ========================================================================
+      case "delete_account": {
+        const accountId = args?.accountId as string;
+        const d = getData();
+
+        const savingsIdx = d.today.savingsAccounts?.findIndex((a) => a.id === accountId) ?? -1;
+        if (savingsIdx >= 0) {
+          const deleted = d.today.savingsAccounts!.splice(savingsIdx, 1)[0];
+          await saveData();
+          return { content: [{ type: "text", text: `Deleted savings account: ${deleted.name}` }] };
+        }
+
+        const investmentIdx = d.today.investmentAccounts?.findIndex((a) => a.id === accountId) ?? -1;
+        if (investmentIdx >= 0) {
+          const deleted = d.today.investmentAccounts!.splice(investmentIdx, 1)[0];
+          await saveData();
+          return { content: [{ type: "text", text: `Deleted investment account: ${deleted.name}` }] };
+        }
+
+        throw new Error(`Account not found: ${accountId}`);
+      }
+
+      case "delete_debt": {
+        const debtId = args?.debtId as string;
+        const d = getData();
+
+        const idx = d.today.debts?.findIndex((debt) => debt.id === debtId) ?? -1;
+        if (idx < 0) throw new Error(`Debt not found: ${debtId}`);
+
+        const deleted = d.today.debts!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted debt: ${deleted.name}` }] };
+      }
+
+      case "delete_asset": {
+        const assetId = args?.assetId as string;
+        const d = getData();
+
+        const idx = d.today.assets?.findIndex((asset) => asset.id === assetId) ?? -1;
+        if (idx < 0) throw new Error(`Asset not found: ${assetId}`);
+
+        const deleted = d.today.assets!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted asset: ${deleted.name}` }] };
+      }
+
+      case "delete_income": {
+        const plan = findPlan(args?.planId as string);
+        const incomeId = args?.incomeId as string;
+
+        const idx = plan.income?.events?.findIndex((i) => i.id === incomeId) ?? -1;
+        if (idx < 0) throw new Error(`Income not found: ${incomeId}`);
+
+        const deleted = plan.income!.events!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted income: ${deleted.name}` }] };
+      }
+
+      case "delete_expense": {
+        const plan = findPlan(args?.planId as string);
+        const expenseId = args?.expenseId as string;
+
+        const idx = plan.expenses?.events?.findIndex((e) => e.id === expenseId) ?? -1;
+        if (idx < 0) throw new Error(`Expense not found: ${expenseId}`);
+
+        const deleted = plan.expenses!.events!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted expense: ${deleted.name}` }] };
+      }
+
+      case "delete_priority": {
+        const plan = findPlan(args?.planId as string);
+        const priorityId = args?.priorityId as string;
+
+        const idx = plan.priorities?.events?.findIndex((p) => p.id === priorityId) ?? -1;
+        if (idx < 0) throw new Error(`Priority not found: ${priorityId}`);
+
+        const deleted = plan.priorities!.events!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted priority: ${deleted.name}` }] };
+      }
+
+      case "delete_milestone": {
+        const plan = findPlan(args?.planId as string);
+        const milestoneId = args?.milestoneId as string;
+
+        const idx = plan.milestones?.findIndex((m) => m.id === milestoneId) ?? -1;
+        if (idx < 0) throw new Error(`Milestone not found: ${milestoneId}`);
+
+        const deleted = plan.milestones!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted milestone: ${deleted.name}` }] };
+      }
+
+      // ========================================================================
+      // Plan Management
+      // ========================================================================
+      case "duplicate_plan": {
+        const sourcePlan = findPlan(args?.planId as string);
+        const newName = args?.newName as string;
+        const d = getData();
+
+        // Deep clone the plan
+        const newPlan: Plan = JSON.parse(JSON.stringify(sourcePlan));
+        newPlan.id = `plan-${Date.now()}`;
+        newPlan.name = newName;
+        newPlan.lastUpdated = Date.now();
+
+        d.plans.push(newPlan);
+        await saveData();
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ id: newPlan.id, name: newPlan.name, copiedFrom: sourcePlan.name }, null, 2)
+          }]
+        };
+      }
+
+      case "delete_plan": {
+        const planId = args?.planId as string;
+        const d = getData();
+
+        const idx = d.plans.findIndex((p) => p.id === planId);
+        if (idx < 0) throw new Error(`Plan not found: ${planId}`);
+
+        if (d.plans.length === 1) {
+          throw new Error("Cannot delete the last plan");
+        }
+
+        const deleted = d.plans.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted plan: ${deleted.name}` }] };
       }
 
       default:
