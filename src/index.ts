@@ -22,6 +22,8 @@ import {
   AssetEvent,
   PriorityEvent,
   Milestone,
+  MilestoneCriterion,
+  DateReference,
   PlanVariables,
   WithdrawalStrategy,
   MonteCarloSettings,
@@ -117,6 +119,36 @@ const tools = [
         planId: { type: "string", description: "The plan ID" },
       },
       required: ["planId"],
+    },
+  },
+
+  // ==========================================================================
+  // Person Info Tools
+  // ==========================================================================
+  {
+    name: "update_person",
+    description: "Update primary person's info (name, birth year/month, age). Birth year combined with plan's loopYear determines life expectancy.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Person's name" },
+        birthYear: { type: "number", description: "Birth year (e.g., 1992). Combined with plan loopYear to determine life expectancy" },
+        birthMonth: { type: "number", description: "Birth month (1-12)" },
+        age: { type: "number", description: "Current age" },
+      },
+    },
+  },
+  {
+    name: "update_spouse",
+    description: "Update spouse's info (name, birth year/month, age). Birth year combined with plan's loopYear determines life expectancy.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Spouse's name" },
+        birthYear: { type: "number", description: "Birth year (e.g., 1992). Combined with plan loopYear to determine life expectancy" },
+        birthMonth: { type: "number", description: "Birth month (1-12)" },
+        age: { type: "number", description: "Current age" },
+      },
     },
   },
 
@@ -328,7 +360,7 @@ const tools = [
   },
   {
     name: "update_income",
-    description: "Update an income event's properties",
+    description: "Update an income event's properties including start/end timing",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -336,6 +368,26 @@ const tools = [
         incomeId: { type: "string", description: "The income event ID" },
         amount: { type: "number", description: "New amount" },
         name: { type: "string", description: "New name" },
+        start: {
+          type: "object",
+          description: "When the income starts. Use type='year' with value='2059' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2059', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the income ends. Same format as start",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2059', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
       },
       required: ["planId", "incomeId"],
     },
@@ -384,7 +436,7 @@ const tools = [
   },
   {
     name: "update_expense",
-    description: "Update an expense event's properties",
+    description: "Update an expense event's properties including start/end timing",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -392,6 +444,26 @@ const tools = [
         expenseId: { type: "string", description: "The expense event ID" },
         amount: { type: "number", description: "New amount" },
         name: { type: "string", description: "New name" },
+        start: {
+          type: "object",
+          description: "When the expense starts. Use type='year' with value='2043' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID (e.g., for 'Sungmin 2nd Career')",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2043', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the expense ends. Same format as start",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2057', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
       },
       required: ["planId", "expenseId"],
     },
@@ -440,16 +512,39 @@ const tools = [
   },
   {
     name: "update_priority",
-    description: "Update a priority's contribution settings",
+    description: "Update a priority's settings including target amounts and contribution settings",
     inputSchema: {
       type: "object" as const,
       properties: {
         planId: { type: "string", description: "The plan ID" },
         priorityId: { type: "string", description: "The priority ID" },
-        contribution: { type: "number", description: "New contribution amount" },
-        contributionType: { type: "string", enum: ["today$", "%"], description: "Contribution type" },
+        amount: { type: "number", description: "Target amount for savings goals (e.g., $150000 for Emergency Fund target)" },
+        amountType: { type: "string", enum: ["today$", "future$"], description: "How to interpret the target amount" },
+        mode: { type: "string", enum: ["target", "contribution"], description: "Whether this priority tracks a target amount or ongoing contributions" },
+        contribution: { type: "number", description: "Contribution amount per period" },
+        contributionType: { type: "string", enum: ["today$", "%"], description: "Contribution type (fixed dollars or percentage)" },
         employerMatch: { type: "number", description: "Employer match percentage" },
         employerMatchLimit: { type: "number", description: "Employer match limit" },
+        start: {
+          type: "object",
+          description: "When the priority starts",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year, keyword, milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years or include/exclude" },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the priority ends",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year, keyword, milestone ID, or ISO date)" },
+            modifier: { type: ["string", "number"], description: "Offset in years or include/exclude" },
+          },
+          required: ["type", "value"],
+        },
       },
       required: ["planId", "priorityId"],
     },
@@ -483,13 +578,55 @@ const tools = [
   },
   {
     name: "update_milestone",
-    description: "Update a milestone's properties",
+    description: "Update a milestone's properties including when it triggers (criteria)",
     inputSchema: {
       type: "object" as const,
       properties: {
         planId: { type: "string", description: "The plan ID" },
         milestoneId: { type: "string", description: "The milestone ID" },
         name: { type: "string", description: "New name" },
+        criteria: {
+          type: "array",
+          description: "Conditions that trigger the milestone. Multiple criteria can be combined with 'and'/'or' logic",
+          items: {
+            type: "object",
+            properties: {
+              type: {
+                type: "string",
+                enum: ["year", "date", "milestone", "netWorth", "account", "totalDebt"],
+                description: "Type of criterion: 'year' for specific year, 'date' for specific date, 'milestone' to reference another milestone, 'netWorth'/'account'/'totalDebt' for financial targets"
+              },
+              value: {
+                type: ["string", "number"],
+                description: "The target value (e.g., year like 2043, dollar amount like 1000000, or milestone ID)"
+              },
+              valueType: {
+                type: "string",
+                enum: ["$", "today$", "expenses", "%"],
+                description: "How to interpret the value for financial targets"
+              },
+              operator: {
+                type: "string",
+                enum: [">=", "<=", "==", ">", "<"],
+                description: "Comparison operator for financial targets"
+              },
+              modifier: {
+                type: "string",
+                enum: ["include", "exclude"],
+                description: "Whether to include or exclude the boundary"
+              },
+              logic: {
+                type: "string",
+                enum: ["and", "or"],
+                description: "How to combine with other criteria"
+              },
+              refId: {
+                type: "string",
+                description: "Reference ID for account/debt when type is 'account' or 'totalDebt'"
+              },
+            },
+          },
+        },
       },
       required: ["planId", "milestoneId"],
     },
@@ -511,11 +648,12 @@ const tools = [
   },
   {
     name: "update_plan_variables",
-    description: "Update plan assumptions (investment return, inflation, tax rates, etc.)",
+    description: "Update plan assumptions (investment return, inflation, tax rates, plan end year/life expectancy, etc.)",
     inputSchema: {
       type: "object" as const,
       properties: {
         planId: { type: "string", description: "The plan ID" },
+        loopYear: { type: "number", description: "Plan end year - sets when the projection ends (effectively life expectancy). E.g., 2088 for Richard born 1992 with 96-year life expectancy" },
         investmentReturn: { type: "number", description: "Expected investment return %" },
         inflation: { type: "number", description: "Expected inflation %" },
         dividendRate: { type: "number", description: "Expected dividend rate %" },
@@ -690,6 +828,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_plan": {
         const plan = findPlan(args?.planId as string);
         return { content: [{ type: "text", text: JSON.stringify(plan, null, 2) }] };
+      }
+
+      // ========================================================================
+      // Person Info
+      // ========================================================================
+      case "update_person": {
+        const d = getData();
+        if (args?.name !== undefined) d.today.yourName = args.name as string;
+        if (args?.birthYear !== undefined) d.today.birthYear = args.birthYear as number;
+        if (args?.birthMonth !== undefined) d.today.birthMonth = args.birthMonth as number;
+        if (args?.age !== undefined) d.today.age = args.age as number;
+
+        await saveData();
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              name: d.today.yourName,
+              birthYear: d.today.birthYear,
+              birthMonth: d.today.birthMonth,
+              age: d.today.age,
+            }, null, 2)
+          }]
+        };
+      }
+
+      case "update_spouse": {
+        const d = getData();
+        if (args?.name !== undefined) d.today.spouseName = args.name as string;
+        if (args?.birthYear !== undefined) d.today.spouseBirthYear = args.birthYear as number;
+        if (args?.birthMonth !== undefined) d.today.spouseBirthMonth = args.birthMonth as number;
+        if (args?.age !== undefined) d.today.spouseAge = args.age as number;
+
+        await saveData();
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              name: d.today.spouseName,
+              birthYear: d.today.spouseBirthYear,
+              birthMonth: d.today.spouseBirthMonth,
+              age: d.today.spouseAge,
+            }, null, 2)
+          }]
+        };
       }
 
       // ========================================================================
@@ -914,6 +1097,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.amount !== undefined) income.amount = args.amount as number;
         if (args?.name !== undefined) income.name = args.name as string;
+        if (args?.start !== undefined) income.start = args.start as DateReference;
+        if (args?.end !== undefined) income.end = args.end as DateReference;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
@@ -964,6 +1149,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.amount !== undefined) expense.amount = args.amount as number;
         if (args?.name !== undefined) expense.name = args.name as string;
+        if (args?.start !== undefined) expense.start = args.start as DateReference;
+        if (args?.end !== undefined) expense.end = args.end as DateReference;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(expense, null, 2) }] };
@@ -1012,10 +1199,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const priority = plan.priorities?.events?.find((p) => p.id === args?.priorityId);
         if (!priority) throw new Error(`Priority not found: ${args?.priorityId}`);
 
+        if (args?.amount !== undefined) priority.amount = args.amount as number;
+        if (args?.amountType !== undefined) priority.amountType = args.amountType as "today$" | "future$";
+        if (args?.mode !== undefined) priority.mode = args.mode as "target" | "contribution";
         if (args?.contribution !== undefined) priority.contribution = args.contribution as number;
         if (args?.contributionType !== undefined) priority.contributionType = args.contributionType as "today$" | "%";
         if (args?.employerMatch !== undefined) priority.employerMatch = args.employerMatch as number;
         if (args?.employerMatchLimit !== undefined) priority.employerMatchLimit = args.employerMatchLimit as number;
+        if (args?.start !== undefined) priority.start = args.start as DateReference;
+        if (args?.end !== undefined) priority.end = args.end as DateReference;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(priority, null, 2) }] };
@@ -1043,6 +1235,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!milestone) throw new Error(`Milestone not found: ${args?.milestoneId}`);
 
         if (args?.name !== undefined) milestone.name = args.name as string;
+        if (args?.criteria !== undefined) milestone.criteria = args.criteria as MilestoneCriterion[];
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
@@ -1060,6 +1253,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const plan = findPlan(args?.planId as string);
         if (!plan.variables) plan.variables = {};
 
+        if (args?.loopYear !== undefined) plan.variables.loopYear = args.loopYear as number;
         if (args?.investmentReturn !== undefined) plan.variables.investmentReturn = args.investmentReturn as number;
         if (args?.inflation !== undefined) plan.variables.inflation = args.inflation as number;
         if (args?.dividendRate !== undefined) plan.variables.dividendRate = args.dividendRate as number;
