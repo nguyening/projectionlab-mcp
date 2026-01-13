@@ -46,16 +46,20 @@ Add to your MCP settings:
 - `list_accounts` - List all savings and investment accounts
 - `get_account` - Get details of a specific account
 - `update_account_balance` - Update an account's balance
+- `rename_account` - Rename an account
+- `add_account` - Add a new savings or investment account
 
 ### Debts
 - `list_debts` - List all debts
 - `get_debt` - Get details of a specific debt
 - `update_debt` - Update debt properties (amount, interest rate, monthly payment)
+- `add_debt` - Add a new debt (student loans, credit card, personal loan, etc.)
 
 ### Assets
 - `list_assets` - List all physical assets (real estate, vehicles, etc.)
 - `get_asset` - Get details of a specific asset
 - `update_asset` - Update asset value or loan balance
+- `add_asset` - Add a new physical asset (real estate, car, etc.)
 
 ### Plan Income
 - `list_income` - List all income events in a plan

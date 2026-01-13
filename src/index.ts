@@ -151,6 +151,40 @@ const tools = [
       required: ["accountId", "balance"],
     },
   },
+  {
+    name: "rename_account",
+    description: "Rename a savings or investment account",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        accountId: { type: "string", description: "The account ID" },
+        name: { type: "string", description: "New account name" },
+      },
+      required: ["accountId", "name"],
+    },
+  },
+  {
+    name: "add_account",
+    description: "Add a new savings or investment account",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Account name" },
+        balance: { type: "number", description: "Initial balance" },
+        accountType: {
+          type: "string",
+          enum: ["savings", "401k", "roth-ira", "traditional-ira", "hsa", "taxable", "529"],
+          description: "Type of account",
+        },
+        owner: {
+          type: "string",
+          enum: ["me", "spouse", "joint"],
+          description: "Account owner (defaults to 'me')",
+        },
+      },
+      required: ["name", "balance", "accountType"],
+    },
+  },
 
   // ==========================================================================
   // Debt Tools
@@ -185,6 +219,30 @@ const tools = [
       required: ["debtId"],
     },
   },
+  {
+    name: "add_debt",
+    description: "Add a new debt (student loans, credit card, personal loan, etc.)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Debt name" },
+        debtType: {
+          type: "string",
+          enum: ["student-loans", "mortgage", "auto", "credit-card", "personal", "other"],
+          description: "Type of debt",
+        },
+        amount: { type: "number", description: "Current balance owed" },
+        interestRate: { type: "number", description: "Annual interest rate (e.g., 6.5 for 6.5%)" },
+        monthlyPayment: { type: "number", description: "Monthly payment amount" },
+        owner: {
+          type: "string",
+          enum: ["me", "spouse", "joint"],
+          description: "Debt owner (defaults to 'me')",
+        },
+      },
+      required: ["name", "debtType", "amount"],
+    },
+  },
 
   // ==========================================================================
   // Asset Tools
@@ -216,6 +274,29 @@ const tools = [
         balance: { type: "number", description: "New loan balance" },
       },
       required: ["assetId"],
+    },
+  },
+  {
+    name: "add_asset",
+    description: "Add a new physical asset (real estate, car, etc.)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Asset name" },
+        assetType: {
+          type: "string",
+          enum: ["car", "real-estate", "other"],
+          description: "Type of asset",
+        },
+        amount: { type: "number", description: "Current value" },
+        balance: { type: "number", description: "Loan balance (if financed)" },
+        owner: {
+          type: "string",
+          enum: ["me", "spouse", "joint"],
+          description: "Asset owner (defaults to 'me')",
+        },
+      },
+      required: ["name", "assetType", "amount"],
     },
   },
 
@@ -655,6 +736,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error(`Account not found: ${accountId}`);
       }
 
+      case "rename_account": {
+        const accountId = args?.accountId as string;
+        const newName = args?.name as string;
+        const d = getData();
+
+        const savingsAccount = d.today.savingsAccounts?.find((a) => a.id === accountId);
+        if (savingsAccount) {
+          savingsAccount.name = newName;
+          await saveData();
+          return { content: [{ type: "text", text: JSON.stringify(savingsAccount, null, 2) }] };
+        }
+
+        const investmentAccount = d.today.investmentAccounts?.find((a) => a.id === accountId);
+        if (investmentAccount) {
+          investmentAccount.name = newName;
+          await saveData();
+          return { content: [{ type: "text", text: JSON.stringify(investmentAccount, null, 2) }] };
+        }
+
+        throw new Error(`Account not found: ${accountId}`);
+      }
+
+      case "add_account": {
+        const d = getData();
+        const accountType = args?.accountType as string;
+        const name = args?.name as string;
+        const balance = args?.balance as number;
+        const owner = (args?.owner as "me" | "spouse" | "joint") ?? "me";
+
+        if (accountType === "savings") {
+          if (!d.today.savingsAccounts) d.today.savingsAccounts = [];
+
+          const newAccount: SavingsAccount = {
+            id: `account-${Date.now()}`,
+            type: "savings",
+            name,
+            balance,
+            owner,
+          };
+
+          d.today.savingsAccounts.push(newAccount);
+          await saveData();
+          return { content: [{ type: "text", text: JSON.stringify(newAccount, null, 2) }] };
+        } else {
+          if (!d.today.investmentAccounts) d.today.investmentAccounts = [];
+
+          const newAccount: InvestmentAccount = {
+            id: `account-${Date.now()}`,
+            type: accountType as InvestmentAccount["type"],
+            name,
+            balance,
+            owner,
+          };
+
+          d.today.investmentAccounts.push(newAccount);
+          await saveData();
+          return { content: [{ type: "text", text: JSON.stringify(newAccount, null, 2) }] };
+        }
+      }
+
       // ========================================================================
       // Debts
       // ========================================================================
@@ -683,6 +824,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(debt, null, 2) }] };
       }
 
+      case "add_debt": {
+        const d = getData();
+        if (!d.today.debts) d.today.debts = [];
+
+        const newDebt: Debt = {
+          id: `debt-${Date.now()}`,
+          type: "debt",
+          subtype: args?.debtType as Debt["subtype"],
+          name: args?.name as string,
+          amount: args?.amount as number,
+          owner: (args?.owner as "me" | "spouse" | "joint") ?? "me",
+        };
+
+        if (args?.interestRate !== undefined) newDebt.interestRate = args.interestRate as number;
+        if (args?.monthlyPayment !== undefined) newDebt.monthlyPayment = args.monthlyPayment as number;
+
+        d.today.debts.push(newDebt);
+        await saveData();
+        return { content: [{ type: "text", text: JSON.stringify(newDebt, null, 2) }] };
+      }
+
       // ========================================================================
       // Assets
       // ========================================================================
@@ -708,6 +870,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(asset, null, 2) }] };
+      }
+
+      case "add_asset": {
+        const d = getData();
+        if (!d.today.assets) d.today.assets = [];
+
+        const newAsset: Asset = {
+          id: `asset-${Date.now()}`,
+          type: args?.assetType as Asset["type"],
+          name: args?.name as string,
+          amount: args?.amount as number,
+          owner: (args?.owner as "me" | "spouse" | "joint") ?? "me",
+        };
+
+        if (args?.balance !== undefined) newAsset.balance = args.balance as number;
+
+        d.today.assets.push(newAsset);
+        await saveData();
+        return { content: [{ type: "text", text: JSON.stringify(newAsset, null, 2) }] };
       }
 
       // ========================================================================
