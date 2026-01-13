@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "projectionlab": {
+      "command": "node",
+      "args": ["/Users/richard.nguyen/go/src/github.com/nguyening/projectionlab-mcp/dist/index.js"]
+    }
+  }
+}

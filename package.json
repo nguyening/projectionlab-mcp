@@ -1,0 +1,39 @@
+{
+  "name": "projectionlab-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for ProjectionLab financial planning data",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "projectionlab-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "projectionlab",
+    "financial-planning",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "schema"
+  ]
+}
