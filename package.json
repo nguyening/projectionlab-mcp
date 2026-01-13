@@ -1,5 +1,5 @@
 {
-  "name": "projectionlab-mcp",
+  "name": "@nguyening/projectionlab-mcp",
   "version": "1.0.0",
   "description": "MCP server for ProjectionLab financial planning data",
   "main": "dist/index.js",
@@ -19,8 +19,16 @@
     "financial-planning",
     "model-context-protocol"
   ],
-  "author": "",
+  "author": "nguyening",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nguyening/projectionlab-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nguyening/projectionlab-mcp/issues"
+  },
+  "homepage": "https://github.com/nguyening/projectionlab-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.22.0"
