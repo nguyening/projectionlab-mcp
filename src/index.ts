@@ -66,6 +66,24 @@ function findPlan(planId: string): Plan {
   return plan;
 }
 
+// Validate milestone criteria - ensure correct value types
+function validateCriteria(criteria: MilestoneCriterion[]): void {
+  for (const c of criteria) {
+    if (c.type === "year" && typeof c.value !== "string") {
+      throw new Error(`Criterion type 'year' requires value to be a date string (e.g., "2053-01-01"), got ${typeof c.value}: ${c.value}`);
+    }
+    if (c.type === "date" && typeof c.value !== "string") {
+      throw new Error(`Criterion type 'date' requires value to be a date string, got ${typeof c.value}`);
+    }
+    if ((c.type === "netWorth" || c.type === "account" || c.type === "totalDebt") && typeof c.value !== "number") {
+      throw new Error(`Criterion type '${c.type}' requires value to be a number, got ${typeof c.value}: "${c.value}"`);
+    }
+    if (c.type === "milestone" && typeof c.value !== "string") {
+      throw new Error(`Criterion type 'milestone' requires value to be a string (milestone ID), got ${typeof c.value}`);
+    }
+  }
+}
+
 // Create MCP Server
 const server = new Server(
   {
@@ -374,7 +392,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2059', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -384,7 +402,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2059', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -450,7 +468,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2043', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -460,7 +478,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2057', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -485,7 +503,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2043', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -495,7 +513,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year like '2057', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years (number) or 'include'/'exclude'" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
         },
@@ -551,7 +569,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year, keyword, milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years or include/exclude" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years or include/exclude" },
           },
           required: ["type", "value"],
         },
@@ -561,7 +579,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
             value: { type: "string", description: "The value (year, keyword, milestone ID, or ISO date)" },
-            modifier: { type: ["string", "number"], description: "Offset in years or include/exclude" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years or include/exclude" },
           },
           required: ["type", "value"],
         },
@@ -598,7 +616,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
             value: { type: "string" },
-            modifier: { type: ["string", "number"] },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }] },
           },
           required: ["type", "value"],
         },
@@ -608,7 +626,7 @@ const tools = [
           properties: {
             type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
             value: { type: "string" },
-            modifier: { type: ["string", "number"] },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }] },
           },
           required: ["type", "value"],
         },
@@ -634,7 +652,7 @@ const tools = [
   // ==========================================================================
   {
     name: "list_milestones",
-    description: "List all milestones in a plan (retirement, FIRE, etc.)",
+    description: "List all milestones in a plan (retirement, FIRE, etc.) including computed milestones derived from goals",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -676,8 +694,8 @@ const tools = [
                 description: "Type of criterion: 'year' for specific year, 'date' for specific date, 'milestone' to reference another milestone, 'netWorth'/'account'/'totalDebt' for financial targets"
               },
               value: {
-                type: ["string", "number"],
-                description: "The target value (e.g., year like 2043, dollar amount like 1000000, or milestone ID)"
+                oneOf: [{ type: "string" }, { type: "number" }],
+                description: "The target value. For type='year'/'date', must be a date string (e.g., '2053-01-01'). For type='netWorth'/'account'/'totalDebt', must be a NUMBER. For type='milestone', use milestone ID string."
               },
               valueType: {
                 type: "string",
@@ -697,7 +715,7 @@ const tools = [
               logic: {
                 type: "string",
                 enum: ["and", "or"],
-                description: "How to combine with other criteria"
+                description: "How to combine with previous criteria. Required for 2nd+ criteria in a list (e.g., 'and' or 'or')"
               },
               refId: {
                 type: "string",
@@ -732,8 +750,8 @@ const tools = [
                 description: "Type of criterion"
               },
               value: {
-                type: ["string", "number"],
-                description: "The target value"
+                oneOf: [{ type: "string" }, { type: "number" }],
+                description: "The target value. For type='year'/'date', must be a DATE STRING (e.g., '2053-01-01'). For type='netWorth'/'account'/'totalDebt', must be a NUMBER. For type='milestone', use the milestone ID string."
               },
               valueType: {
                 type: "string",
@@ -753,7 +771,7 @@ const tools = [
               logic: {
                 type: "string",
                 enum: ["and", "or"],
-                description: "How to combine with other criteria"
+                description: "How to combine with previous criteria. Required for 2nd+ criteria in a list (e.g., 'and' or 'or')"
               },
               refId: {
                 type: "string",
@@ -1483,12 +1501,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_milestones": {
         const plan = findPlan(args?.planId as string);
         const milestones = plan.milestones ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(milestones, null, 2) }] };
+        const computedMilestones = plan.computedMilestones ?? [];
+        return { content: [{ type: "text", text: JSON.stringify({ milestones, computedMilestones }, null, 2) }] };
       }
 
       case "get_milestone": {
         const plan = findPlan(args?.planId as string);
-        const milestone = plan.milestones?.find((m) => m.id === args?.milestoneId);
+        const milestone = plan.milestones?.find((m) => m.id === args?.milestoneId)
+          ?? plan.computedMilestones?.find((m) => m.id === args?.milestoneId);
         if (!milestone) throw new Error(`Milestone not found: ${args?.milestoneId}`);
         return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
       }
@@ -1499,7 +1519,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!milestone) throw new Error(`Milestone not found: ${args?.milestoneId}`);
 
         if (args?.name !== undefined) milestone.name = args.name as string;
-        if (args?.criteria !== undefined) milestone.criteria = args.criteria as MilestoneCriterion[];
+        if (args?.criteria !== undefined) {
+          const criteria = args.criteria as MilestoneCriterion[];
+          validateCriteria(criteria);
+          milestone.criteria = criteria;
+        }
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
@@ -1517,7 +1541,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.icon !== undefined) newMilestone.icon = args.icon as string;
         if (args?.color !== undefined) newMilestone.color = args.color as string;
-        if (args?.criteria !== undefined) newMilestone.criteria = args.criteria as MilestoneCriterion[];
+        if (args?.criteria !== undefined) {
+          const criteria = args.criteria as MilestoneCriterion[];
+          validateCriteria(criteria);
+          newMilestone.criteria = criteria;
+        }
 
         plan.milestones.push(newMilestone);
         await saveData();
