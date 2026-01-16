@@ -386,6 +386,7 @@ const tools = [
         incomeId: { type: "string", description: "The income event ID" },
         amount: { type: "number", description: "New amount" },
         name: { type: "string", description: "New name" },
+        frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency" },
         start: {
           type: "object",
           description: "When the income starts. Use type='year' with value='2059' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID",
@@ -419,7 +420,8 @@ const tools = [
         planId: { type: "string", description: "The plan ID" },
         type: { type: "string", enum: ["salary", "rsu", "social-security", "pension", "rental", "other"], description: "Income type" },
         name: { type: "string", description: "Income name" },
-        amount: { type: "number", description: "Annual amount" },
+        amount: { type: "number", description: "Amount (interpretation depends on frequency)" },
+        frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency (default: yearly)" },
         owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner" },
       },
       required: ["planId", "type", "name", "amount"],
@@ -462,6 +464,7 @@ const tools = [
         expenseId: { type: "string", description: "The expense event ID" },
         amount: { type: "number", description: "New amount" },
         name: { type: "string", description: "New name" },
+        frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency" },
         start: {
           type: "object",
           description: "When the expense starts. Use type='year' with value='2043' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID (e.g., for 'Sungmin 2nd Career')",
@@ -495,7 +498,8 @@ const tools = [
         planId: { type: "string", description: "The plan ID" },
         type: { type: "string", enum: ["living-expenses", "debt", "charity", "education", "dependent-support", "healthcare", "other"], description: "Expense type" },
         name: { type: "string", description: "Expense name" },
-        amount: { type: "number", description: "Annual amount" },
+        amount: { type: "number", description: "Amount (interpretation depends on frequency)" },
+        frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency (default: yearly)" },
         spendingType: { type: "string", enum: ["essential", "discretionary", "flex"], description: "Spending category" },
         start: {
           type: "object",
@@ -1350,6 +1354,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.amount !== undefined) income.amount = args.amount as number;
         if (args?.name !== undefined) income.name = args.name as string;
+        if (args?.frequency !== undefined) income.frequency = args.frequency as IncomeEvent["frequency"];
         if (args?.start !== undefined) income.start = args.start as DateReference;
         if (args?.end !== undefined) income.end = args.end as DateReference;
 
@@ -1369,7 +1374,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           amount: args?.amount as number,
           amountType: "today$",
           owner: (args?.owner as IncomeEvent["owner"]) ?? "me",
-          frequency: "yearly",
+          frequency: (args?.frequency as IncomeEvent["frequency"]) ?? "yearly",
           start: { type: "keyword", value: "now" },
           end: { type: "keyword", value: "endOfPlan" },
         };
@@ -1402,6 +1407,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.amount !== undefined) expense.amount = args.amount as number;
         if (args?.name !== undefined) expense.name = args.name as string;
+        if (args?.frequency !== undefined) expense.frequency = args.frequency as ExpenseEvent["frequency"];
         if (args?.start !== undefined) expense.start = args.start as DateReference;
         if (args?.end !== undefined) expense.end = args.end as DateReference;
 
@@ -1420,7 +1426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           name: args?.name as string,
           amount: args?.amount as number,
           amountType: "today$",
-          frequency: "yearly",
+          frequency: (args?.frequency as ExpenseEvent["frequency"]) ?? "yearly",
           spendingType: (args?.spendingType as ExpenseEvent["spendingType"]) ?? "discretionary",
           start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
           end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
