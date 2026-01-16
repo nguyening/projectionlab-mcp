@@ -84,6 +84,111 @@ function validateCriteria(criteria: MilestoneCriterion[]): void {
   }
 }
 
+// Validate milestone criteria references - ensure refId points to existing entities
+function validateCriteriaReferences(criteria: MilestoneCriterion[], today: ProjectionLabExport["today"], plan?: Plan): void {
+  for (const c of criteria) {
+    if (!c.refId) continue;
+
+    switch (c.type) {
+      case "account": {
+        // Check if account exists in savingsAccounts or investmentAccounts
+        const savingsMatch = today.savingsAccounts?.find((a: { id?: string }) => a.id === c.refId);
+        const investmentMatch = today.investmentAccounts?.find((a: { id?: string }) => a.id === c.refId);
+        if (!savingsMatch && !investmentMatch) {
+          throw new Error(`Criterion references non-existent account: "${c.refId}". Check today.savingsAccounts and today.investmentAccounts for valid IDs.`);
+        }
+        break;
+      }
+
+      case "debt":
+      case "totalDebt": {
+        // Check if debt exists in today.debts
+        const debtMatch = today.debts?.find((d: { id?: string }) => d.id === c.refId);
+        if (!debtMatch) {
+          throw new Error(`Criterion references non-existent debt: "${c.refId}". Check today.debts for valid IDs.`);
+        }
+        break;
+      }
+
+      case "milestone": {
+        // Check if milestone exists in plan milestones (if plan provided)
+        if (plan) {
+          const milestoneMatch = plan.milestones?.find((m) => m.id === c.refId);
+          const computedMatch = plan.computedMilestones?.find((m) => m.id === c.refId);
+          // Also check for built-in milestone names
+          const builtInMilestones = ["retirement", "spouseRetirement", "fire"];
+          if (!milestoneMatch && !computedMatch && !builtInMilestones.includes(c.refId)) {
+            throw new Error(`Criterion references non-existent milestone: "${c.refId}". Check plan.milestones for valid IDs.`);
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
+// Valid keyword values for DateReference start/end properties
+const VALID_DATE_KEYWORDS = ["now", "endOfPlan", "beforeCurrentYear", "never"] as const;
+
+// Validate DateReference objects for start/end properties
+function validateDateReference(ref: unknown, fieldName: string): void {
+  if (!ref || typeof ref !== "object") {
+    throw new Error(`${fieldName} cannot be empty - must be a DateReference object with type and value`);
+  }
+
+  const dateRef = ref as Record<string, unknown>;
+
+  if (!dateRef.type) {
+    throw new Error(`${fieldName}.type is required - must be one of: keyword, milestone, date, year`);
+  }
+
+  if (!dateRef.value && dateRef.value !== 0) {
+    throw new Error(`${fieldName}.value is required`);
+  }
+
+  const validTypes = ["keyword", "milestone", "date", "year"];
+  if (!validTypes.includes(dateRef.type as string)) {
+    throw new Error(`${fieldName}.type must be one of: ${validTypes.join(", ")}. Got: "${dateRef.type}"`);
+  }
+
+  // Type-specific validation
+  switch (dateRef.type) {
+    case "keyword":
+      if (!VALID_DATE_KEYWORDS.includes(dateRef.value as typeof VALID_DATE_KEYWORDS[number])) {
+        throw new Error(`${fieldName}.value for type 'keyword' must be one of: ${VALID_DATE_KEYWORDS.join(", ")}. Got: "${dateRef.value}"`);
+      }
+      break;
+
+    case "year":
+      // Year should be a 4-digit year string like "2059"
+      if (typeof dateRef.value !== "string" || !/^\d{4}$/.test(dateRef.value)) {
+        throw new Error(`${fieldName}.value for type 'year' must be a 4-digit year string (e.g., "2059"). Got: "${dateRef.value}"`);
+      }
+      break;
+
+    case "date":
+      // Date can be ISO date "2059-01-01" or just year "2027"
+      if (typeof dateRef.value !== "string" || !/^\d{4}(-\d{2}(-\d{2})?)?/.test(dateRef.value)) {
+        throw new Error(`${fieldName}.value for type 'date' must be a date string (e.g., "2059-01-01" or "2027"). Got: "${dateRef.value}"`);
+      }
+      break;
+
+    case "milestone":
+      // Milestone should be a non-empty string (milestone ID like "retirement", "fire", or UUID)
+      if (typeof dateRef.value !== "string" || dateRef.value.trim() === "") {
+        throw new Error(`${fieldName}.value for type 'milestone' must be a non-empty milestone ID string. Got: "${dateRef.value}"`);
+      }
+      break;
+  }
+
+  // Validate modifier if present
+  if (dateRef.modifier !== undefined) {
+    if (typeof dateRef.modifier !== "number" && dateRef.modifier !== "include" && dateRef.modifier !== "exclude") {
+      throw new Error(`${fieldName}.modifier must be a number (year offset) or "include"/"exclude". Got: "${dateRef.modifier}"`);
+    }
+  }
+}
+
 // Create MCP Server
 const server = new Server(
   {
@@ -1355,8 +1460,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.amount !== undefined) income.amount = args.amount as number;
         if (args?.name !== undefined) income.name = args.name as string;
         if (args?.frequency !== undefined) income.frequency = args.frequency as IncomeEvent["frequency"];
-        if (args?.start !== undefined) income.start = args.start as DateReference;
-        if (args?.end !== undefined) income.end = args.end as DateReference;
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+          income.start = args.start as DateReference;
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+          income.end = args.end as DateReference;
+        }
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
@@ -1408,8 +1519,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.amount !== undefined) expense.amount = args.amount as number;
         if (args?.name !== undefined) expense.name = args.name as string;
         if (args?.frequency !== undefined) expense.frequency = args.frequency as ExpenseEvent["frequency"];
-        if (args?.start !== undefined) expense.start = args.start as DateReference;
-        if (args?.end !== undefined) expense.end = args.end as DateReference;
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+          expense.start = args.start as DateReference;
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+          expense.end = args.end as DateReference;
+        }
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(expense, null, 2) }] };
@@ -1419,6 +1536,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const plan = findPlan(args?.planId as string);
         if (!plan.expenses) plan.expenses = { events: [] };
         if (!plan.expenses.events) plan.expenses.events = [];
+
+        // Validate start/end if provided
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+        }
 
         const newExpense: ExpenseEvent = {
           id: `expense-${Date.now()}`,
@@ -1465,8 +1590,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.contributionType !== undefined) priority.contributionType = args.contributionType as "today$" | "%";
         if (args?.employerMatch !== undefined) priority.employerMatch = args.employerMatch as number;
         if (args?.employerMatchLimit !== undefined) priority.employerMatchLimit = args.employerMatchLimit as number;
-        if (args?.start !== undefined) priority.start = args.start as DateReference;
-        if (args?.end !== undefined) priority.end = args.end as DateReference;
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+          priority.start = args.start as DateReference;
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+          priority.end = args.end as DateReference;
+        }
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(priority, null, 2) }] };
@@ -1476,6 +1607,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const plan = findPlan(args?.planId as string);
         if (!plan.priorities) plan.priorities = { events: [] };
         if (!plan.priorities.events) plan.priorities.events = [];
+
+        // Validate start/end if provided
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+        }
 
         const newPriority: PriorityEvent = {
           id: `priority-${Date.now()}`,
@@ -1528,6 +1667,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.criteria !== undefined) {
           const criteria = args.criteria as MilestoneCriterion[];
           validateCriteria(criteria);
+          validateCriteriaReferences(criteria, data!.today, plan);
           milestone.criteria = criteria;
         }
 
@@ -1550,6 +1690,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.criteria !== undefined) {
           const criteria = args.criteria as MilestoneCriterion[];
           validateCriteria(criteria);
+          validateCriteriaReferences(criteria, data!.today, plan);
           newMilestone.criteria = criteria;
         }
 

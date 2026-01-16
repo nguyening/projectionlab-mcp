@@ -365,7 +365,7 @@
       "type": "object",
       "description": "Condition for milestone completion",
       "properties": {
-        "type": { "type": "string", "enum": ["year", "date", "milestone", "netWorth", "account", "totalDebt"] },
+        "type": { "type": "string", "enum": ["year", "date", "milestone", "netWorth", "account", "totalDebt", "debt"] },
         "value": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
         "valueType": { "type": "string", "enum": ["$", "today$", "expenses", "%"] },
         "operator": { "type": "string", "enum": [">=", "<=", "==", ">", "<"] },

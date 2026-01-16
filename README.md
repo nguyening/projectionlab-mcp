@@ -110,6 +110,47 @@ Add to your MCP settings:
 - `duplicate_plan` - Create a copy of an existing plan with a new name
 - `delete_plan` - Delete a plan (prevents deleting the last plan)
 
+## DateReference Format
+
+Many tools that work with timing (income, expenses, priorities) use a `DateReference` object for `start` and `end` properties. This object specifies when something begins or ends.
+
+### Structure
+
+```json
+{
+  "type": "keyword" | "milestone" | "date" | "year",
+  "value": "<string>",
+  "modifier": "include" | "exclude" | <number>  // optional
+}
+```
+
+### Types and Values
+
+| Type | Value Format | Example |
+|------|--------------|---------|
+| `keyword` | `now`, `endOfPlan`, `beforeCurrentYear`, `never` | `{ "type": "keyword", "value": "now" }` |
+| `year` | 4-digit year string | `{ "type": "year", "value": "2059" }` |
+| `date` | ISO date string | `{ "type": "date", "value": "2029-06-01" }` |
+| `milestone` | Milestone ID (e.g., `retirement`, `fire`, or UUID) | `{ "type": "milestone", "value": "retirement" }` |
+
+### Modifier
+
+- `"include"` / `"exclude"` - Whether to include or exclude the boundary
+- Number - Year offset (e.g., `5` to add 5 years)
+
+### Examples
+
+```json
+// Start now, end at retirement
+{ "start": { "type": "keyword", "value": "now" }, "end": { "type": "milestone", "value": "retirement" } }
+
+// Start in 2030, end when plan ends
+{ "start": { "type": "year", "value": "2030" }, "end": { "type": "keyword", "value": "endOfPlan" } }
+
+// Start at specific date, never end
+{ "start": { "type": "date", "value": "2025-09-01" }, "end": { "type": "keyword", "value": "never" } }
+```
+
 ## Data Safety
 
 - All changes are written to your local export file
