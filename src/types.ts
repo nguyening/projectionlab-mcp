@@ -364,7 +364,7 @@ export interface Milestone {
 }
 
 export interface MilestoneCriterion {
-  type?: "year" | "date" | "milestone" | "netWorth" | "account" | "totalDebt";
+  type?: "year" | "date" | "milestone" | "netWorth" | "account" | "totalDebt" | "debt";
   value?: string | number;
   valueType?: "$" | "today$" | "expenses" | "%";
   operator?: ">=" | "<=" | "==" | ">" | "<";
