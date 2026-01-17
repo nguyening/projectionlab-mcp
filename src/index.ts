@@ -512,6 +512,9 @@ const tools = [
           },
           required: ["type", "value"],
         },
+        withhold: { type: "number", description: "Tax withholding percentage (0-100)" },
+        taxWithholding: { type: "boolean", description: "Whether tax withholding is enabled for this income" },
+        isDividendIncome: { type: "boolean", description: "Whether this income is treated as dividend income (affects tax treatment)" },
       },
       required: ["planId", "incomeId"],
     },
@@ -1468,6 +1471,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           validateDateReference(args.end, "end");
           income.end = args.end as DateReference;
         }
+        if (args?.withhold !== undefined) income.withhold = args.withhold as number;
+        if (args?.taxWithholding !== undefined) income.taxWithholding = args.taxWithholding as boolean;
+        if (args?.isDividendIncome !== undefined) income.isDividendIncome = args.isDividendIncome as boolean;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };

@@ -64,7 +64,7 @@ Add to your MCP settings:
 ### Plan Income
 - `list_income` - List all income events in a plan
 - `get_income` - Get details of a specific income event
-- `update_income` - Update income properties
+- `update_income` - Update income properties (amount, name, frequency, start/end timing, withhold, taxWithholding, isDividendIncome)
 - `add_income` - Add a new income event
 
 ### Plan Expenses
