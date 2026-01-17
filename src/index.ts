@@ -24,6 +24,7 @@ import {
   Milestone,
   MilestoneCriterion,
   DateReference,
+  YearlyChange,
   PlanVariables,
   WithdrawalStrategy,
   MonteCarloSettings,
@@ -515,6 +516,15 @@ const tools = [
         withhold: { type: "number", description: "Tax withholding percentage (0-100)" },
         taxWithholding: { type: "boolean", description: "Whether tax withholding is enabled for this income" },
         isDividendIncome: { type: "boolean", description: "Whether this income is treated as dividend income (affects tax treatment)" },
+        yearlyChange: {
+          type: "object",
+          description: "How the income amount changes over time (inflation adjustment, growth, etc.)",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"], description: "Type of yearly change" },
+            amount: { type: "number", description: "Amount of change (interpretation depends on amountType)" },
+            amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
+          },
+        },
       },
       required: ["planId", "incomeId"],
     },
@@ -531,6 +541,15 @@ const tools = [
         amount: { type: "number", description: "Amount (interpretation depends on frequency)" },
         frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency (default: yearly)" },
         owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner" },
+        yearlyChange: {
+          type: "object",
+          description: "How the income amount changes over time (inflation adjustment, growth, etc.)",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"], description: "Type of yearly change" },
+            amount: { type: "number", description: "Amount of change (interpretation depends on amountType)" },
+            amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
+          },
+        },
       },
       required: ["planId", "type", "name", "amount"],
     },
@@ -593,6 +612,16 @@ const tools = [
           },
           required: ["type", "value"],
         },
+        owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner of the expense" },
+        yearlyChange: {
+          type: "object",
+          description: "How the expense amount changes over time (inflation adjustment, growth, etc.)",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"], description: "Type of yearly change" },
+            amount: { type: "number", description: "Amount of change (interpretation depends on amountType)" },
+            amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
+          },
+        },
       },
       required: ["planId", "expenseId"],
     },
@@ -609,6 +638,7 @@ const tools = [
         amount: { type: "number", description: "Amount (interpretation depends on frequency)" },
         frequency: { type: "string", enum: ["yearly", "monthly", "bi-weekly", "weekly", "quarterly", "once"], description: "Payment frequency (default: yearly)" },
         spendingType: { type: "string", enum: ["essential", "discretionary", "flex"], description: "Spending category" },
+        owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner of the expense" },
         start: {
           type: "object",
           description: "When the expense starts. Use type='year' with value='2043' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID",
@@ -628,6 +658,15 @@ const tools = [
             modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
           },
           required: ["type", "value"],
+        },
+        yearlyChange: {
+          type: "object",
+          description: "How the expense amount changes over time (inflation adjustment, growth, etc.)",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"], description: "Type of yearly change" },
+            amount: { type: "number", description: "Amount of change (interpretation depends on amountType)" },
+            amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
+          },
         },
       },
       required: ["planId", "type", "name", "amount"],
@@ -1474,6 +1513,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.withhold !== undefined) income.withhold = args.withhold as number;
         if (args?.taxWithholding !== undefined) income.taxWithholding = args.taxWithholding as boolean;
         if (args?.isDividendIncome !== undefined) income.isDividendIncome = args.isDividendIncome as boolean;
+        if (args?.yearlyChange !== undefined) income.yearlyChange = args.yearlyChange as YearlyChange;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
@@ -1495,6 +1535,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           start: { type: "keyword", value: "now" },
           end: { type: "keyword", value: "endOfPlan" },
         };
+
+        if (args?.yearlyChange !== undefined) newIncome.yearlyChange = args.yearlyChange as YearlyChange;
 
         plan.income.events.push(newIncome);
         await saveData();
@@ -1533,6 +1575,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           validateDateReference(args.end, "end");
           expense.end = args.end as DateReference;
         }
+        if (args?.owner !== undefined) expense.owner = args.owner as ExpenseEvent["owner"];
+        if (args?.yearlyChange !== undefined) expense.yearlyChange = args.yearlyChange as YearlyChange;
 
         await saveData();
         return { content: [{ type: "text", text: JSON.stringify(expense, null, 2) }] };
@@ -1559,9 +1603,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           amountType: "today$",
           frequency: (args?.frequency as ExpenseEvent["frequency"]) ?? "yearly",
           spendingType: (args?.spendingType as ExpenseEvent["spendingType"]) ?? "discretionary",
+          owner: (args?.owner as ExpenseEvent["owner"]) ?? "me",
           start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
           end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
         };
+
+        if (args?.yearlyChange !== undefined) newExpense.yearlyChange = args.yearlyChange as YearlyChange;
 
         plan.expenses.events.push(newExpense);
         await saveData();
