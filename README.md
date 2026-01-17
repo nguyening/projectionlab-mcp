@@ -64,14 +64,14 @@ Add to your MCP settings:
 ### Plan Income
 - `list_income` - List all income events in a plan
 - `get_income` - Get details of a specific income event
-- `update_income` - Update income properties (amount, name, frequency, start/end timing, withhold, taxWithholding, isDividendIncome)
-- `add_income` - Add a new income event
+- `update_income` - Update income properties (amount, name, frequency, start/end timing, withhold, taxWithholding, isDividendIncome, yearlyChange)
+- `add_income` - Add a new income event (supports yearlyChange for inflation/growth)
 
 ### Plan Expenses
 - `list_expenses` - List all expense events in a plan
 - `get_expense` - Get details of a specific expense event
-- `update_expense` - Update expense properties
-- `add_expense` - Add a new expense event
+- `update_expense` - Update expense properties (amount, name, frequency, start/end timing, owner, yearlyChange)
+- `add_expense` - Add a new expense event (supports owner and yearlyChange for inflation/growth)
 
 ### Cash Flow Priorities
 - `list_priorities` - List cash flow priorities (401k contributions, debt payments, etc.)
