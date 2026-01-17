@@ -707,6 +707,7 @@ const tools = [
       properties: {
         planId: { type: "string", description: "The plan ID" },
         priorityId: { type: "string", description: "The priority ID" },
+        name: { type: "string", description: "New name for the priority" },
         amount: { type: "number", description: "Target amount for savings goals (e.g., $150000 for Emergency Fund target)" },
         amountType: { type: "string", enum: ["today$", "future$"], description: "How to interpret the target amount" },
         mode: { type: "string", enum: ["target", "contribution"], description: "Whether this priority tracks a target amount or ongoing contributions" },
@@ -1636,6 +1637,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const priority = plan.priorities?.events?.find((p) => p.id === args?.priorityId);
         if (!priority) throw new Error(`Priority not found: ${args?.priorityId}`);
 
+        if (args?.name !== undefined) priority.name = args.name as string;
         if (args?.amount !== undefined) priority.amount = args.amount as number;
         if (args?.amountType !== undefined) priority.amountType = args.amountType as "today$" | "future$";
         if (args?.mode !== undefined) priority.mode = args.mode as "target" | "contribution";
