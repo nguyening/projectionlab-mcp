@@ -708,6 +708,7 @@ const tools = [
         planId: { type: "string", description: "The plan ID" },
         priorityId: { type: "string", description: "The priority ID" },
         name: { type: "string", description: "New name for the priority" },
+        incomeStreamId: { type: "string", description: "Income source ID (for employer retirement accounts: 401k, mega-backdoor, espp)" },
         amount: { type: "number", description: "Target amount for savings goals (e.g., $150000 for Emergency Fund target)" },
         amountType: { type: "string", enum: ["today$", "future$"], description: "How to interpret the target amount" },
         mode: { type: "string", enum: ["target", "contribution"], description: "Whether this priority tracks a target amount or ongoing contributions" },
@@ -1639,6 +1640,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!priority) throw new Error(`Priority not found: ${args?.priorityId}`);
 
         if (args?.name !== undefined) priority.name = args.name as string;
+        if (args?.incomeStreamId !== undefined) {
+          // Validate the income source exists
+          const incomeExists = plan.income?.events?.some((i) => i.id === args.incomeStreamId);
+          if (!incomeExists) {
+            throw new Error(`Income source not found: ${args.incomeStreamId}`);
+          }
+          priority.incomeStreamId = args.incomeStreamId as string;
+        }
         if (args?.amount !== undefined) priority.amount = args.amount as number;
         if (args?.amountType !== undefined) priority.amountType = args.amountType as "today$" | "future$";
         if (args?.mode !== undefined) priority.mode = args.mode as "target" | "contribution";
