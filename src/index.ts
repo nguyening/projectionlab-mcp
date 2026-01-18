@@ -10,6 +10,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { encode } from "@toon-format/toon";
 import {
   ProjectionLabExport,
   Plan,
@@ -1224,7 +1225,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           planCount: d.plans.length,
           planNames: d.plans.map((p) => ({ id: p.id, name: p.name, active: p.active })),
         };
-        return { content: [{ type: "text", text: JSON.stringify(overview, null, 2) }] };
+        return { content: [{ type: "text", text: encode(overview) }] };
       }
 
       // ========================================================================
@@ -1242,12 +1243,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           expenseCount: p.expenses?.events?.length ?? 0,
           prioritiesCount: p.priorities?.events?.length ?? 0,
         }));
-        return { content: [{ type: "text", text: JSON.stringify(plans, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plans) }] };
       }
 
       case "get_plan": {
         const plan = findPlan(args?.planId as string);
-        return { content: [{ type: "text", text: JSON.stringify(plan, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan) }] };
       }
 
       // ========================================================================
@@ -1264,12 +1265,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({
+            text: encode({
               name: d.today.yourName,
               birthYear: d.today.birthYear,
               birthMonth: d.today.birthMonth,
               age: d.today.age,
-            }, null, 2)
+            })
           }]
         };
       }
@@ -1285,12 +1286,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({
+            text: encode({
               name: d.today.spouseName,
               birthYear: d.today.spouseBirthYear,
               birthMonth: d.today.spouseBirthMonth,
               age: d.today.spouseAge,
-            }, null, 2)
+            })
           }]
         };
       }
@@ -1304,7 +1305,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ...(d.today.savingsAccounts?.map((a) => ({ ...a, category: "savings" })) ?? []),
           ...(d.today.investmentAccounts?.map((a) => ({ ...a, category: "investment" })) ?? []),
         ];
-        return { content: [{ type: "text", text: JSON.stringify(accounts, null, 2) }] };
+        return { content: [{ type: "text", text: encode(accounts) }] };
       }
 
       case "get_account": {
@@ -1314,7 +1315,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           d.today.savingsAccounts?.find((a) => a.id === accountId) ??
           d.today.investmentAccounts?.find((a) => a.id === accountId);
         if (!account) throw new Error(`Account not found: ${accountId}`);
-        return { content: [{ type: "text", text: JSON.stringify(account, null, 2) }] };
+        return { content: [{ type: "text", text: encode(account) }] };
       }
 
       case "update_account_balance": {
@@ -1326,14 +1327,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (savingsAccount) {
           savingsAccount.balance = newBalance;
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(savingsAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(savingsAccount) }] };
         }
 
         const investmentAccount = d.today.investmentAccounts?.find((a) => a.id === accountId);
         if (investmentAccount) {
           investmentAccount.balance = newBalance;
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(investmentAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(investmentAccount) }] };
         }
 
         throw new Error(`Account not found: ${accountId}`);
@@ -1348,14 +1349,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (savingsAccount) {
           savingsAccount.name = newName;
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(savingsAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(savingsAccount) }] };
         }
 
         const investmentAccount = d.today.investmentAccounts?.find((a) => a.id === accountId);
         if (investmentAccount) {
           investmentAccount.name = newName;
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(investmentAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(investmentAccount) }] };
         }
 
         throw new Error(`Account not found: ${accountId}`);
@@ -1381,7 +1382,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           d.today.savingsAccounts.push(newAccount);
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(newAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(newAccount) }] };
         } else {
           if (!d.today.investmentAccounts) d.today.investmentAccounts = [];
 
@@ -1395,7 +1396,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           d.today.investmentAccounts.push(newAccount);
           await saveData();
-          return { content: [{ type: "text", text: JSON.stringify(newAccount, null, 2) }] };
+          return { content: [{ type: "text", text: encode(newAccount) }] };
         }
       }
 
@@ -1404,14 +1405,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "list_debts": {
         const debts = getData().today.debts ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(debts, null, 2) }] };
+        return { content: [{ type: "text", text: encode(debts) }] };
       }
 
       case "get_debt": {
         const debtId = args?.debtId as string;
         const debt = getData().today.debts?.find((d) => d.id === debtId);
         if (!debt) throw new Error(`Debt not found: ${debtId}`);
-        return { content: [{ type: "text", text: JSON.stringify(debt, null, 2) }] };
+        return { content: [{ type: "text", text: encode(debt) }] };
       }
 
       case "update_debt": {
@@ -1424,7 +1425,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.monthlyPayment !== undefined) debt.monthlyPayment = args.monthlyPayment as number;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(debt, null, 2) }] };
+        return { content: [{ type: "text", text: encode(debt) }] };
       }
 
       case "add_debt": {
@@ -1445,7 +1446,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         d.today.debts.push(newDebt);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newDebt, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newDebt) }] };
       }
 
       // ========================================================================
@@ -1453,14 +1454,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "list_assets": {
         const assets = getData().today.assets ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(assets, null, 2) }] };
+        return { content: [{ type: "text", text: encode(assets) }] };
       }
 
       case "get_asset": {
         const assetId = args?.assetId as string;
         const asset = getData().today.assets?.find((a) => a.id === assetId);
         if (!asset) throw new Error(`Asset not found: ${assetId}`);
-        return { content: [{ type: "text", text: JSON.stringify(asset, null, 2) }] };
+        return { content: [{ type: "text", text: encode(asset) }] };
       }
 
       case "update_asset": {
@@ -1472,7 +1473,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.balance !== undefined) asset.balance = args.balance as number;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(asset, null, 2) }] };
+        return { content: [{ type: "text", text: encode(asset) }] };
       }
 
       case "add_asset": {
@@ -1491,7 +1492,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         d.today.assets.push(newAsset);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newAsset, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newAsset) }] };
       }
 
       // ========================================================================
@@ -1500,14 +1501,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_income": {
         const plan = findPlan(args?.planId as string);
         const income = plan.income?.events ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
+        return { content: [{ type: "text", text: encode(income) }] };
       }
 
       case "get_income": {
         const plan = findPlan(args?.planId as string);
         const income = plan.income?.events?.find((i) => i.id === args?.incomeId);
         if (!income) throw new Error(`Income not found: ${args?.incomeId}`);
-        return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
+        return { content: [{ type: "text", text: encode(income) }] };
       }
 
       case "update_income": {
@@ -1532,7 +1533,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.yearlyChange !== undefined) income.yearlyChange = args.yearlyChange as YearlyChange;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(income, null, 2) }] };
+        return { content: [{ type: "text", text: encode(income) }] };
       }
 
       case "add_income": {
@@ -1556,7 +1557,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         plan.income.events.push(newIncome);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newIncome, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newIncome) }] };
       }
 
       // ========================================================================
@@ -1565,14 +1566,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_expenses": {
         const plan = findPlan(args?.planId as string);
         const expenses = plan.expenses?.events ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(expenses, null, 2) }] };
+        return { content: [{ type: "text", text: encode(expenses) }] };
       }
 
       case "get_expense": {
         const plan = findPlan(args?.planId as string);
         const expense = plan.expenses?.events?.find((e) => e.id === args?.expenseId);
         if (!expense) throw new Error(`Expense not found: ${args?.expenseId}`);
-        return { content: [{ type: "text", text: JSON.stringify(expense, null, 2) }] };
+        return { content: [{ type: "text", text: encode(expense) }] };
       }
 
       case "update_expense": {
@@ -1595,7 +1596,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.yearlyChange !== undefined) expense.yearlyChange = args.yearlyChange as YearlyChange;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(expense, null, 2) }] };
+        return { content: [{ type: "text", text: encode(expense) }] };
       }
 
       case "add_expense": {
@@ -1628,7 +1629,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         plan.expenses.events.push(newExpense);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newExpense, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newExpense) }] };
       }
 
       // ========================================================================
@@ -1637,14 +1638,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_priorities": {
         const plan = findPlan(args?.planId as string);
         const priorities = plan.priorities?.events ?? [];
-        return { content: [{ type: "text", text: JSON.stringify(priorities, null, 2) }] };
+        return { content: [{ type: "text", text: encode(priorities) }] };
       }
 
       case "get_priority": {
         const plan = findPlan(args?.planId as string);
         const priority = plan.priorities?.events?.find((p) => p.id === args?.priorityId);
         if (!priority) throw new Error(`Priority not found: ${args?.priorityId}`);
-        return { content: [{ type: "text", text: JSON.stringify(priority, null, 2) }] };
+        return { content: [{ type: "text", text: encode(priority) }] };
       }
 
       case "update_priority": {
@@ -1678,7 +1679,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(priority, null, 2) }] };
+        return { content: [{ type: "text", text: encode(priority) }] };
       }
 
       case "add_priority": {
@@ -1729,7 +1730,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         plan.priorities.events.push(newPriority);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newPriority, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newPriority) }] };
       }
 
       // ========================================================================
@@ -1739,7 +1740,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const plan = findPlan(args?.planId as string);
         const milestones = plan.milestones ?? [];
         const computedMilestones = plan.computedMilestones ?? [];
-        return { content: [{ type: "text", text: JSON.stringify({ milestones, computedMilestones }, null, 2) }] };
+        return { content: [{ type: "text", text: encode({ milestones, computedMilestones }) }] };
       }
 
       case "get_milestone": {
@@ -1747,7 +1748,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const milestone = plan.milestones?.find((m) => m.id === args?.milestoneId)
           ?? plan.computedMilestones?.find((m) => m.id === args?.milestoneId);
         if (!milestone) throw new Error(`Milestone not found: ${args?.milestoneId}`);
-        return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
+        return { content: [{ type: "text", text: encode(milestone) }] };
       }
 
       case "update_milestone": {
@@ -1764,7 +1765,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(milestone, null, 2) }] };
+        return { content: [{ type: "text", text: encode(milestone) }] };
       }
 
       case "add_milestone": {
@@ -1788,7 +1789,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         plan.milestones.push(newMilestone);
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(newMilestone, null, 2) }] };
+        return { content: [{ type: "text", text: encode(newMilestone) }] };
       }
 
       // ========================================================================
@@ -1796,7 +1797,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "get_plan_variables": {
         const plan = findPlan(args?.planId as string);
-        return { content: [{ type: "text", text: JSON.stringify(plan.variables ?? {}, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.variables ?? {}) }] };
       }
 
       case "update_plan_variables": {
@@ -1812,7 +1813,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.capGainsTaxRate !== undefined) plan.variables.capGainsTaxRate = args.capGainsTaxRate as number;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(plan.variables, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.variables) }] };
       }
 
       // ========================================================================
@@ -1820,7 +1821,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "get_withdrawal_strategy": {
         const plan = findPlan(args?.planId as string);
-        return { content: [{ type: "text", text: JSON.stringify(plan.withdrawalStrategy ?? {}, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.withdrawalStrategy ?? {}) }] };
       }
 
       case "update_withdrawal_strategy": {
@@ -1831,7 +1832,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.enabled !== undefined) plan.withdrawalStrategy.enabled = args.enabled as boolean;
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(plan.withdrawalStrategy, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.withdrawalStrategy) }] };
       }
 
       // ========================================================================
@@ -1839,7 +1840,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "get_montecarlo_settings": {
         const plan = findPlan(args?.planId as string);
-        return { content: [{ type: "text", text: JSON.stringify(plan.montecarlo ?? {}, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.montecarlo ?? {}) }] };
       }
 
       case "update_montecarlo_settings": {
@@ -1850,7 +1851,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args?.mode !== undefined) plan.montecarlo.mode = args.mode as MonteCarloSettings["mode"];
 
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(plan.montecarlo, null, 2) }] };
+        return { content: [{ type: "text", text: encode(plan.montecarlo) }] };
       }
 
       // ========================================================================
@@ -1858,7 +1859,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // ========================================================================
       case "get_progress": {
         const progress = getData().progress ?? { data: [] };
-        return { content: [{ type: "text", text: JSON.stringify(progress, null, 2) }] };
+        return { content: [{ type: "text", text: encode(progress) }] };
       }
 
       case "add_progress_snapshot": {
@@ -1879,7 +1880,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         d.progress.data.push(snapshot);
         d.progress.lastUpdated = Date.now();
         await saveData();
-        return { content: [{ type: "text", text: JSON.stringify(snapshot, null, 2) }] };
+        return { content: [{ type: "text", text: encode(snapshot) }] };
       }
 
       // ========================================================================
@@ -1989,7 +1990,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         // Return the new order
         const order = plan.priorities.events.map((p, i) => ({ index: i, id: p.id, name: p.name }));
-        return { content: [{ type: "text", text: JSON.stringify(order, null, 2) }] };
+        return { content: [{ type: "text", text: encode(order) }] };
       }
 
       case "delete_milestone": {
@@ -2023,7 +2024,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{
             type: "text",
-            text: JSON.stringify({ id: newPlan.id, name: newPlan.name, copiedFrom: sourcePlan.name }, null, 2)
+            text: encode({ id: newPlan.id, name: newPlan.name, copiedFrom: sourcePlan.name })
           }]
         };
       }
@@ -2094,17 +2095,13 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         {
           uri,
           mimeType: "application/json",
-          text: JSON.stringify(
-            {
-              totalSavings,
-              totalInvestments,
-              totalDebt,
-              netWorth: totalSavings + totalInvestments - totalDebt,
-              planCount: d.plans.length,
-            },
-            null,
-            2
-          ),
+          text: encode({
+            totalSavings,
+            totalInvestments,
+            totalDebt,
+            netWorth: totalSavings + totalInvestments - totalDebt,
+            planCount: d.plans.length,
+          }),
         },
       ],
     };
@@ -2118,7 +2115,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         {
           uri,
           mimeType: "application/json",
-          text: JSON.stringify(plan, null, 2),
+          text: encode(plan),
         },
       ],
     };
