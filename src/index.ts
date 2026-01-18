@@ -754,6 +754,7 @@ const tools = [
         name: { type: "string", description: "Priority name" },
         accountId: { type: "string", description: "Target account ID (for account-based priorities)" },
         debtId: { type: "string", description: "Target debt ID (for debt payment priorities)" },
+        incomeStreamId: { type: "string", description: "Income source ID (required for employer retirement accounts: 401k, mega-backdoor, espp)" },
         owner: { type: "string", enum: ["me", "spouse", "joint"], description: "Owner" },
         mode: { type: "string", enum: ["target", "contribution"], description: "Target amount or contribution mode" },
         amount: { type: "number", description: "Target amount (for target mode)" },
@@ -1671,6 +1672,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           validateDateReference(args.end, "end");
         }
 
+        // Validate employer retirement accounts require an income source
+        const employerRetirementTypes = ["401k", "mega-backdoor", "espp"];
+        if (employerRetirementTypes.includes(args?.type as string)) {
+          if (!args?.incomeStreamId) {
+            throw new Error(`Employer retirement account priorities (${args?.type}) require an incomeStreamId linking to an income source`);
+          }
+          // Validate the income source exists
+          const incomeExists = plan.income?.events?.some((i) => i.id === args.incomeStreamId);
+          if (!incomeExists) {
+            throw new Error(`Income source not found: ${args.incomeStreamId}`);
+          }
+        }
+
         const newPriority: PriorityEvent = {
           id: `priority-${Date.now()}`,
           type: args?.type as PriorityEvent["type"],
@@ -1683,6 +1697,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.accountId !== undefined) newPriority.accountId = args.accountId as string;
         if (args?.debtId !== undefined) newPriority.debtId = args.debtId as string;
+        if (args?.incomeStreamId !== undefined) newPriority.incomeStreamId = args.incomeStreamId as string;
         if (args?.amount !== undefined) newPriority.amount = args.amount as number;
         if (args?.amountType !== undefined) newPriority.amountType = args.amountType as "today$" | "future$";
         if (args?.contribution !== undefined) newPriority.contribution = args.contribution as number;
