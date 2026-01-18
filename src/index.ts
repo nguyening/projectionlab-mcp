@@ -800,6 +800,19 @@ const tools = [
       required: ["planId", "priorityId"],
     },
   },
+  {
+    name: "reorder_priority",
+    description: "Move a priority to a new position in the priority list. Lower positions are processed first.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        priorityId: { type: "string", description: "The priority ID to move" },
+        newIndex: { type: "number", description: "New position (0-based index). Use 0 for first, or a large number to move to end." },
+      },
+      required: ["planId", "priorityId", "newIndex"],
+    },
+  },
 
   // ==========================================================================
   // Milestone Tools
@@ -1951,6 +1964,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const deleted = plan.priorities!.events!.splice(idx, 1)[0];
         await saveData();
         return { content: [{ type: "text", text: `Deleted priority: ${deleted.name}` }] };
+      }
+
+      case "reorder_priority": {
+        const plan = findPlan(args?.planId as string);
+        const priorityId = args?.priorityId as string;
+        const newIndex = args?.newIndex as number;
+
+        if (!plan.priorities?.events?.length) {
+          throw new Error("No priorities found in plan");
+        }
+
+        const currentIndex = plan.priorities.events.findIndex((p) => p.id === priorityId);
+        if (currentIndex < 0) throw new Error(`Priority not found: ${priorityId}`);
+
+        // Remove from current position
+        const [priority] = plan.priorities.events.splice(currentIndex, 1);
+
+        // Insert at new position (clamped to valid range)
+        const targetIndex = Math.max(0, Math.min(newIndex, plan.priorities.events.length));
+        plan.priorities.events.splice(targetIndex, 0, priority);
+
+        await saveData();
+
+        // Return the new order
+        const order = plan.priorities.events.map((p, i) => ({ index: i, id: p.id, name: p.name }));
+        return { content: [{ type: "text", text: JSON.stringify(order, null, 2) }] };
       }
 
       case "delete_milestone": {
