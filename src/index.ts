@@ -485,7 +485,7 @@ const tools = [
   },
   {
     name: "update_plan_asset",
-    description: "Update a plan asset event's properties including start/end timing",
+    description: "Update a plan asset event's properties including start/end timing, financing, and rates",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -493,7 +493,6 @@ const tools = [
         assetId: { type: "string", description: "The plan asset event ID" },
         name: { type: "string", description: "New name" },
         amount: { type: "number", description: "New current value" },
-        balance: { type: "number", description: "New loan balance" },
         initialValue: { type: "number", description: "Initial purchase value" },
         start: {
           type: "object",
@@ -524,6 +523,19 @@ const tools = [
             amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
           },
         },
+        // Financing fields
+        paymentMethod: { type: "string", enum: ["pay-in-full", "financed"], description: "How the asset is paid for" },
+        balance: { type: "number", description: "Loan balance (if financed)" },
+        downPayment: { type: "number", description: "Down payment amount (if financed)" },
+        monthlyPayment: { type: "number", description: "Monthly loan payment (if financed)" },
+        interestRate: { type: "number", description: "Loan interest rate as percentage (if financed)" },
+        // Cost/Rate fields
+        taxRate: { type: "number", description: "Annual tax rate (property tax, etc.)" },
+        maintenanceRate: { type: "number", description: "Annual maintenance rate as percentage of value" },
+        insuranceRate: { type: "number", description: "Annual insurance rate as percentage of value" },
+        // Sale-related fields
+        brokersFee: { type: "number", description: "Broker's fee percentage when selling" },
+        sellIfNeeded: { type: "boolean", description: "Whether this asset can be sold if needed for expenses" },
       },
       required: ["planId", "assetId"],
     },
@@ -541,9 +553,7 @@ const tools = [
           enum: ["car", "real-estate", "other"],
           description: "Type of asset",
         },
-        amount: { type: "number", description: "Current/purchase value" },
-        balance: { type: "number", description: "Loan balance (if financed)" },
-        initialValue: { type: "number", description: "Initial purchase value" },
+        amount: { type: "number", description: "Current/purchase value (also used as initialValue if not specified)" },
         owner: {
           type: "string",
           enum: ["me", "spouse", "joint"],
@@ -578,6 +588,20 @@ const tools = [
             amountType: { type: "string", enum: ["today$", "%"] },
           },
         },
+        // Financing fields
+        paymentMethod: { type: "string", enum: ["pay-in-full", "financed"], description: "How the asset is paid for (defaults to 'pay-in-full')" },
+        initialValue: { type: "number", description: "Initial purchase value (defaults to amount)" },
+        balance: { type: "number", description: "Loan balance (if financed, defaults to 0)" },
+        downPayment: { type: "number", description: "Down payment amount (if financed)" },
+        monthlyPayment: { type: "number", description: "Monthly loan payment (if financed)" },
+        interestRate: { type: "number", description: "Loan interest rate as percentage (if financed)" },
+        // Cost/Rate fields
+        taxRate: { type: "number", description: "Annual tax rate (property tax, etc.)" },
+        maintenanceRate: { type: "number", description: "Annual maintenance rate as percentage of value" },
+        insuranceRate: { type: "number", description: "Annual insurance rate as percentage of value" },
+        // Sale-related fields
+        brokersFee: { type: "number", description: "Broker's fee percentage when selling" },
+        sellIfNeeded: { type: "boolean", description: "Whether this asset can be sold if needed for expenses" },
       },
       required: ["planId", "name", "assetType", "amount"],
     },
@@ -1656,7 +1680,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (args?.name !== undefined) asset.name = args.name as string;
         if (args?.amount !== undefined) asset.amount = args.amount as number;
-        if (args?.balance !== undefined) asset.balance = args.balance as number;
         if (args?.initialValue !== undefined) asset.initialValue = args.initialValue as number;
         if (args?.start !== undefined) {
           validateDateReference(args.start, "start");
@@ -1667,6 +1690,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           asset.end = args.end as DateReference;
         }
         if (args?.yearlyChange !== undefined) asset.yearlyChange = args.yearlyChange as YearlyChange;
+        // Financing fields
+        if (args?.paymentMethod !== undefined) asset.paymentMethod = args.paymentMethod as "pay-in-full" | "financed";
+        if (args?.balance !== undefined) asset.balance = args.balance as number;
+        if (args?.downPayment !== undefined) asset.downPayment = args.downPayment as number;
+        if (args?.monthlyPayment !== undefined) asset.monthlyPayment = args.monthlyPayment as number;
+        if (args?.interestRate !== undefined) asset.interestRate = args.interestRate as number;
+        // Cost/Rate fields
+        if (args?.taxRate !== undefined) asset.taxRate = args.taxRate as number;
+        if (args?.maintenanceRate !== undefined) asset.maintenanceRate = args.maintenanceRate as number;
+        if (args?.insuranceRate !== undefined) asset.insuranceRate = args.insuranceRate as number;
+        // Sale-related fields
+        if (args?.brokersFee !== undefined) asset.brokersFee = args.brokersFee as number;
+        if (args?.sellIfNeeded !== undefined) asset.sellIfNeeded = args.sellIfNeeded as boolean;
 
         await saveData();
         return { content: [{ type: "text", text: encode(asset) }] };
@@ -1685,24 +1721,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           validateDateReference(args.end, "end");
         }
 
+        const amount = args?.amount as number;
         const newAsset: AssetEvent = {
           id: `asset-${Date.now()}`,
           type: args?.assetType as Asset["type"],
           name: args?.name as string,
-          amount: args?.amount as number,
+          amount: amount,
           amountType: "today$",
           owner: (args?.owner as "me" | "spouse" | "joint") ?? "me",
           start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
           end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
           planPath: "assets",
+          // Default initialValue to amount, paymentMethod to pay-in-full
+          initialValue: (args?.initialValue as number) ?? amount,
+          initialValueType: "today$",
+          paymentMethod: (args?.paymentMethod as "pay-in-full" | "financed") ?? "pay-in-full",
+          balance: (args?.balance as number) ?? 0,
+          balanceType: "today$",
         };
 
-        if (args?.balance !== undefined) newAsset.balance = args.balance as number;
-        if (args?.initialValue !== undefined) {
-          newAsset.initialValue = args.initialValue as number;
-          newAsset.initialValueType = "today$";
-        }
         if (args?.yearlyChange !== undefined) newAsset.yearlyChange = args.yearlyChange as YearlyChange;
+        // Financing fields
+        if (args?.downPayment !== undefined) {
+          newAsset.downPayment = args.downPayment as number;
+          newAsset.downPaymentType = "today$";
+        }
+        if (args?.monthlyPayment !== undefined) {
+          newAsset.monthlyPayment = args.monthlyPayment as number;
+          newAsset.monthlyPaymentType = "today$";
+        }
+        if (args?.interestRate !== undefined) newAsset.interestRate = args.interestRate as number;
+        // Cost/Rate fields
+        if (args?.taxRate !== undefined) {
+          newAsset.taxRate = args.taxRate as number;
+          newAsset.taxRateType = "%";
+        }
+        if (args?.maintenanceRate !== undefined) {
+          newAsset.maintenanceRate = args.maintenanceRate as number;
+          newAsset.maintenanceRateType = "%";
+        }
+        if (args?.insuranceRate !== undefined) {
+          newAsset.insuranceRate = args.insuranceRate as number;
+          newAsset.insuranceRateType = "%";
+        }
+        // Sale-related fields
+        if (args?.brokersFee !== undefined) newAsset.brokersFee = args.brokersFee as number;
+        if (args?.sellIfNeeded !== undefined) newAsset.sellIfNeeded = args.sellIfNeeded as boolean;
 
         plan.assets.events.push(newAsset);
         await saveData();
