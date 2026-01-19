@@ -402,16 +402,16 @@ const tools = [
   },
 
   // ==========================================================================
-  // Asset Tools
+  // Today Asset Tools (current snapshot)
   // ==========================================================================
   {
-    name: "list_assets",
+    name: "list_today_assets",
     description: "List all physical assets (real estate, cars, etc.) from the 'today' snapshot",
     inputSchema: { type: "object" as const, properties: {} },
   },
   {
-    name: "get_asset",
-    description: "Get details of a specific asset",
+    name: "get_today_asset",
+    description: "Get details of a specific asset from today's snapshot",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -421,8 +421,8 @@ const tools = [
     },
   },
   {
-    name: "update_asset",
-    description: "Update an asset's properties",
+    name: "update_today_asset",
+    description: "Update a today asset's properties",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -434,8 +434,8 @@ const tools = [
     },
   },
   {
-    name: "add_asset",
-    description: "Add a new physical asset (real estate, car, etc.)",
+    name: "add_today_asset",
+    description: "Add a new physical asset to the today snapshot (real estate, car, etc.)",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -454,6 +454,144 @@ const tools = [
         },
       },
       required: ["name", "assetType", "amount"],
+    },
+  },
+
+  // ==========================================================================
+  // Plan Asset Tools (plan-specific asset events)
+  // ==========================================================================
+  {
+    name: "list_plan_assets",
+    description: "List all asset events in a plan (future assets, asset purchases/sales)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+      },
+      required: ["planId"],
+    },
+  },
+  {
+    name: "get_plan_asset",
+    description: "Get details of a specific plan asset event",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        assetId: { type: "string", description: "The plan asset event ID" },
+      },
+      required: ["planId", "assetId"],
+    },
+  },
+  {
+    name: "update_plan_asset",
+    description: "Update a plan asset event's properties including start/end timing",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        assetId: { type: "string", description: "The plan asset event ID" },
+        name: { type: "string", description: "New name" },
+        amount: { type: "number", description: "New current value" },
+        balance: { type: "number", description: "New loan balance" },
+        initialValue: { type: "number", description: "Initial purchase value" },
+        start: {
+          type: "object",
+          description: "When the asset is acquired. Use type='year' with value='2027' for a specific year, type='keyword' with value='now' or 'endOfPlan', or type='milestone' with value=milestone ID",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2027', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the asset is sold/disposed. Same format as start",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"], description: "Type of date reference" },
+            value: { type: "string", description: "The value (year like '2057', keyword like 'now'/'endOfPlan', milestone ID, or ISO date)" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }], description: "Offset in years (number) or 'include'/'exclude'" },
+          },
+          required: ["type", "value"],
+        },
+        yearlyChange: {
+          type: "object",
+          description: "How the asset value changes over time (appreciation, depreciation, etc.)",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"], description: "Type of yearly change" },
+            amount: { type: "number", description: "Amount of change (interpretation depends on amountType)" },
+            amountType: { type: "string", enum: ["today$", "%"], description: "Whether amount is in dollars or percentage" },
+          },
+        },
+      },
+      required: ["planId", "assetId"],
+    },
+  },
+  {
+    name: "add_plan_asset",
+    description: "Add a new asset event to a plan (future asset purchase, investment property, etc.)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        name: { type: "string", description: "Asset name" },
+        assetType: {
+          type: "string",
+          enum: ["car", "real-estate", "other"],
+          description: "Type of asset",
+        },
+        amount: { type: "number", description: "Current/purchase value" },
+        balance: { type: "number", description: "Loan balance (if financed)" },
+        initialValue: { type: "number", description: "Initial purchase value" },
+        owner: {
+          type: "string",
+          enum: ["me", "spouse", "joint"],
+          description: "Asset owner (defaults to 'me')",
+        },
+        start: {
+          type: "object",
+          description: "When the asset is acquired",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
+            value: { type: "string" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }] },
+          },
+          required: ["type", "value"],
+        },
+        end: {
+          type: "object",
+          description: "When the asset is sold/disposed",
+          properties: {
+            type: { type: "string", enum: ["keyword", "milestone", "date", "year"] },
+            value: { type: "string" },
+            modifier: { oneOf: [{ type: "string" }, { type: "number" }] },
+          },
+          required: ["type", "value"],
+        },
+        yearlyChange: {
+          type: "object",
+          description: "How the asset value changes over time",
+          properties: {
+            type: { type: "string", enum: ["none", "match-inflation", "inflation+", "increase", "decrease", "depreciate", "appreciate", "custom"] },
+            amount: { type: "number" },
+            amountType: { type: "string", enum: ["today$", "%"] },
+          },
+        },
+      },
+      required: ["planId", "name", "assetType", "amount"],
+    },
+  },
+  {
+    name: "delete_plan_asset",
+    description: "Delete an asset event from a plan",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        planId: { type: "string", description: "The plan ID" },
+        assetId: { type: "string", description: "The plan asset event ID to delete" },
+      },
+      required: ["planId", "assetId"],
     },
   },
 
@@ -1105,8 +1243,8 @@ const tools = [
     },
   },
   {
-    name: "delete_asset",
-    description: "Delete an asset",
+    name: "delete_today_asset",
+    description: "Delete an asset from the today snapshot",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -1450,21 +1588,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // ========================================================================
-      // Assets
+      // Today Assets
       // ========================================================================
-      case "list_assets": {
+      case "list_today_assets": {
         const assets = getData().today.assets ?? [];
         return { content: [{ type: "text", text: encode(assets) }] };
       }
 
-      case "get_asset": {
+      case "get_today_asset": {
         const assetId = args?.assetId as string;
         const asset = getData().today.assets?.find((a) => a.id === assetId);
         if (!asset) throw new Error(`Asset not found: ${assetId}`);
         return { content: [{ type: "text", text: encode(asset) }] };
       }
 
-      case "update_asset": {
+      case "update_today_asset": {
         const assetId = args?.assetId as string;
         const asset = getData().today.assets?.find((a) => a.id === assetId);
         if (!asset) throw new Error(`Asset not found: ${assetId}`);
@@ -1476,7 +1614,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: encode(asset) }] };
       }
 
-      case "add_asset": {
+      case "add_today_asset": {
         const d = getData();
         if (!d.today.assets) d.today.assets = [];
 
@@ -1493,6 +1631,94 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         d.today.assets.push(newAsset);
         await saveData();
         return { content: [{ type: "text", text: encode(newAsset) }] };
+      }
+
+      // ========================================================================
+      // Plan Assets
+      // ========================================================================
+      case "list_plan_assets": {
+        const plan = findPlan(args?.planId as string);
+        const assets = plan.assets?.events ?? [];
+        return { content: [{ type: "text", text: encode(assets) }] };
+      }
+
+      case "get_plan_asset": {
+        const plan = findPlan(args?.planId as string);
+        const asset = plan.assets?.events?.find((a) => a.id === args?.assetId);
+        if (!asset) throw new Error(`Plan asset not found: ${args?.assetId}`);
+        return { content: [{ type: "text", text: encode(asset) }] };
+      }
+
+      case "update_plan_asset": {
+        const plan = findPlan(args?.planId as string);
+        const asset = plan.assets?.events?.find((a) => a.id === args?.assetId);
+        if (!asset) throw new Error(`Plan asset not found: ${args?.assetId}`);
+
+        if (args?.name !== undefined) asset.name = args.name as string;
+        if (args?.amount !== undefined) asset.amount = args.amount as number;
+        if (args?.balance !== undefined) asset.balance = args.balance as number;
+        if (args?.initialValue !== undefined) asset.initialValue = args.initialValue as number;
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+          asset.start = args.start as DateReference;
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+          asset.end = args.end as DateReference;
+        }
+        if (args?.yearlyChange !== undefined) asset.yearlyChange = args.yearlyChange as YearlyChange;
+
+        await saveData();
+        return { content: [{ type: "text", text: encode(asset) }] };
+      }
+
+      case "add_plan_asset": {
+        const plan = findPlan(args?.planId as string);
+        if (!plan.assets) plan.assets = { events: [] };
+        if (!plan.assets.events) plan.assets.events = [];
+
+        // Validate start/end if provided
+        if (args?.start !== undefined) {
+          validateDateReference(args.start, "start");
+        }
+        if (args?.end !== undefined) {
+          validateDateReference(args.end, "end");
+        }
+
+        const newAsset: AssetEvent = {
+          id: `asset-${Date.now()}`,
+          type: args?.assetType as Asset["type"],
+          name: args?.name as string,
+          amount: args?.amount as number,
+          amountType: "today$",
+          owner: (args?.owner as "me" | "spouse" | "joint") ?? "me",
+          start: (args?.start as DateReference) ?? { type: "keyword", value: "now" },
+          end: (args?.end as DateReference) ?? { type: "keyword", value: "endOfPlan" },
+          planPath: "assets",
+        };
+
+        if (args?.balance !== undefined) newAsset.balance = args.balance as number;
+        if (args?.initialValue !== undefined) {
+          newAsset.initialValue = args.initialValue as number;
+          newAsset.initialValueType = "today$";
+        }
+        if (args?.yearlyChange !== undefined) newAsset.yearlyChange = args.yearlyChange as YearlyChange;
+
+        plan.assets.events.push(newAsset);
+        await saveData();
+        return { content: [{ type: "text", text: encode(newAsset) }] };
+      }
+
+      case "delete_plan_asset": {
+        const plan = findPlan(args?.planId as string);
+        const assetId = args?.assetId as string;
+
+        const idx = plan.assets?.events?.findIndex((a) => a.id === assetId) ?? -1;
+        if (idx < 0) throw new Error(`Plan asset not found: ${assetId}`);
+
+        const deleted = plan.assets!.events!.splice(idx, 1)[0];
+        await saveData();
+        return { content: [{ type: "text", text: `Deleted plan asset: ${deleted.name}` }] };
       }
 
       // ========================================================================
@@ -1919,7 +2145,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Deleted debt: ${deleted.name}` }] };
       }
 
-      case "delete_asset": {
+      case "delete_today_asset": {
         const assetId = args?.assetId as string;
         const d = getData();
 
